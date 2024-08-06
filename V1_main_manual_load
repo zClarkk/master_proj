@@ -45,7 +45,7 @@ def circleCoordByFormula(patient=0, width=255, height=255, radius=10, epsilon=5,
         circ[1][lm][x_axis][count] = x
         circ[1][lm][y_axis][count] = y
         count += 1
-  if multiple == True and lm_count < 160: 
+  if multiple == True and lm_count < 5: 
     lm_count += 1
     circleCoordByFormula(lm=lm+1)
 
@@ -62,4 +62,4 @@ def plotIt(patient=0, lm=0, s_lm=5, s_circ=1, c_lm="r", c_circ="b"):
       plt.scatter(circ[1][mark][0][:], circ[1][mark][1][:],  s=s_circ, c=c_circ) 
 
 circleCoordByFormula()
-plotIt(lm=-1)
+plotIt(lm=1)
