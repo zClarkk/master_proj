@@ -32,7 +32,8 @@ for key, value in imgs.items():
 # patients, landmarks, axis, possible points
 circ = torch.zeros([247, 166, 2, 500])
 
-lm_count = 0
+# needs to be 0 for below
+lm_count = 165
 def circleCoordByFormula(patient=0, width=255, height=255, radius=10, epsilon=5, lm=0, multiple=True):
   global lm_count
   print(lm)
@@ -45,21 +46,24 @@ def circleCoordByFormula(patient=0, width=255, height=255, radius=10, epsilon=5,
         circ[1][lm][x_axis][count] = x
         circ[1][lm][y_axis][count] = y
         count += 1
-  if multiple == True and lm_count < 5: 
+  if multiple == True and lm_count < 165:
     lm_count += 1
     circleCoordByFormula(lm=lm+1)
 
 
-def plotIt(patient=0, lm=0, s_lm=5, s_circ=1, c_lm="r", c_circ="b"):
+def plotIt(file=circ, patient=0, lm=0, s_lm=5, s_circ=1, c_lm="r", c_circ="b"):
   if lm > -1:
     implot = plt.imshow(img0[patient, :, :], cmap='gray')
     plt.scatter(lms[patient, :, 0], lms[patient, :, 1], s=s_lm, c=c_lm)
-    plt.scatter(circ[1][lm][0][:], circ[1][lm][1][:],  s=s_circ, c=c_circ)  
+    plt.scatter(file[1][lm][0][:], file[1][lm][1][:],  s=s_circ, c=c_circ)  
   elif lm == -1:
     implot = plt.imshow(img0[patient, :, :], cmap='gray')
     plt.scatter(lms[patient, :, 0], lms[patient, :, 1], s=s_lm, c=c_lm)
     for mark in range(lm_count):
-      plt.scatter(circ[1][mark][0][:], circ[1][mark][1][:],  s=s_circ, c=c_circ) 
+      plt.scatter(file[1][mark][0][:], file[1][mark][1][:],  s=s_circ, c=c_circ) 
 
-circleCoordByFormula()
-plotIt(lm=1)
+#circleCoordByFormula()
+#torch.save(circ, "circle.pt")
+
+ten = torch.load("/home/erguen/Documents/monai-env/circle.pt")
+plotIt(file=ten, lm=-1)

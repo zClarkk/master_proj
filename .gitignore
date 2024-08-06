@@ -1,3 +1,5 @@
 V2_main_torch_loader
 V3_main_monai_loader
 midPointCirc.py
+*.pt
+.nfs000000010278bc0500001536
