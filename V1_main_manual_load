@@ -29,11 +29,11 @@ for key, value in imgs.items():
 # plt.gca().add_patch(circle)
 # plt.scatter(lms[20, 1, 0], lms[20, 1, 1], s=5, c='r')
 
-# patients, landmarks, axis, possible points
+### patients, landmarks, axis, possible points
 circ = torch.zeros([247, 166, 2, 500])
 
-# needs to be 0 for below
-lm_count = 165
+### needs to be 0 for below else 165 for test
+lm_count = 0
 def circleCoordByFormula(patient=0, width=255, height=255, radius=10, epsilon=5, lm=0, multiple=True):
   global lm_count
   print(lm)
@@ -43,27 +43,29 @@ def circleCoordByFormula(patient=0, width=255, height=255, radius=10, epsilon=5,
   for y in range(height):
     for x in range(width):
       if abs((x-lms[patient][lm][x_axis])**2 + (y-lms[patient][lm][y_axis])**2 - radius**2) < epsilon**2:
-        circ[1][lm][x_axis][count] = x
-        circ[1][lm][y_axis][count] = y
+        circ[patient][lm][x_axis][count] = x
+        circ[patient][lm][y_axis][count] = y
         count += 1
-  if multiple == True and lm_count < 165:
+  if multiple == True and lm_count < 10: #165
     lm_count += 1
     circleCoordByFormula(lm=lm+1)
 
+# for patient_number in range(247):
+#   circleCoordByFormula(patient_number)
 
 def plotIt(file=circ, patient=0, lm=0, s_lm=5, s_circ=1, c_lm="r", c_circ="b"):
   if lm > -1:
     implot = plt.imshow(img0[patient, :, :], cmap='gray')
     plt.scatter(lms[patient, :, 0], lms[patient, :, 1], s=s_lm, c=c_lm)
-    plt.scatter(file[1][lm][0][:], file[1][lm][1][:],  s=s_circ, c=c_circ)  
+    plt.scatter(file[patient][lm][0][:], file[1][lm][1][:],  s=s_circ, c=c_circ)  
   elif lm == -1:
     implot = plt.imshow(img0[patient, :, :], cmap='gray')
     plt.scatter(lms[patient, :, 0], lms[patient, :, 1], s=s_lm, c=c_lm)
     for mark in range(lm_count):
-      plt.scatter(file[1][mark][0][:], file[1][mark][1][:],  s=s_circ, c=c_circ) 
+      plt.scatter(file[patient][mark][0][:], file[patient][mark][1][:],  s=s_circ, c=c_circ) 
 
-#circleCoordByFormula()
-#torch.save(circ, "circle.pt")
+circleCoordByFormula()
+# torch.save(circ, "circle.pt")
 
 ten = torch.load("/home/erguen/Documents/monai-env/circle.pt")
-plotIt(file=ten, lm=-1)
+plotIt(file=circ, lm=-1)
