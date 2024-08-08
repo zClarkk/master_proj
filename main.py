@@ -90,11 +90,8 @@ def plotIt(image, landmarks, circles=circ, patient=patient_nr, lm=0, s_lm=5, s_c
         Offers the option to plot either a single circle (lm>-1) or all (lm=-1).
         Parameters s_ and c_ are for the dot size and color.
     '''
-
-    # Apply the mask to filter out elements
-    # mask = torch.nonzero(circles[0,0,0])
-    # print(circles[0,0,0, mask])
-    
+    plot_flag = True
+    plot_count = 0
     ### Case for plotting a single circle
     if lm > -1:
         implot = plt.imshow(image[:, :], cmap='gray')
@@ -104,15 +101,17 @@ def plotIt(image, landmarks, circles=circ, patient=patient_nr, lm=0, s_lm=5, s_c
     elif lm == -1:
         implot = plt.imshow(image[:, :], cmap='gray')
         plt.scatter(landmarks[:, 0], landmarks[:, 1], s=s_lm, c=c_lm)
-        ### Only plot as many circles as created in circleCoordByFormula
-        for mark in range(lm_count): #TODO muss noch angepasst werden, damit nicht von lm_count abhängig
-            plt.scatter(circles[patient][mark][0][:], circles[patient][mark][1][:],  s=s_circ, c=c_circ)
+        ### Plot all calculated circles
+        while plot_flag:
+            if circles[patient][plot_count][0][0] == 0 and circles[patient][plot_count][0][0] == 0:
+                plot_flag = False
+            plt.scatter(circles[patient][plot_count][0][:], circles[patient][plot_count][1][:],  s=s_circ, c=c_circ)
+            plot_count += 1
 
 ### Function calls         
-circleCoordByFormula(img, lms, 3)
+circleCoordByFormula(img, lms, 10)
 circ = circ[...,0:155] # drops all non-zero entries by assuming that all circles have 155 pixels
 plotIt(img, lms, lm=-1)
-print(circ.shape)
 
 
 # ### Monai Unet
