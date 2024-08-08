@@ -53,7 +53,7 @@ class xRayDataset(Dataset):
     return got_img, got_lms
 
 ### Inits
-circ = torch.zeros([247, 166, 2, 500]) # patients, landmarks, axis, possible points
+circ = torch.zeros([247, 166, 2, 200]) # patients, landmarks, axis, possible points
 lm_count = 0 # needs to be 0 for below else 165 for test
 patient_nr = 0
 
@@ -102,16 +102,18 @@ def plotIt(image, landmarks, circles=circ, patient=patient_nr, lm=0, s_lm=5, s_c
         implot = plt.imshow(image[:, :], cmap='gray')
         plt.scatter(landmarks[:, 0], landmarks[:, 1], s=s_lm, c=c_lm)
         ### Plot all calculated circles
-        while plot_flag:
+        while plot_flag and plot_flag < 166:
             if circles[patient][plot_count][0][0] == 0 and circles[patient][plot_count][0][0] == 0:
                 plot_flag = False
             plt.scatter(circles[patient][plot_count][0][:], circles[patient][plot_count][1][:],  s=s_circ, c=c_circ)
             plot_count += 1
 
 ### Function calls         
-circleCoordByFormula(img, lms, 10)
-circ = circ[...,0:155] # drops all non-zero entries by assuming that all circles have 155 pixels
-plotIt(img, lms, lm=-1)
+# circleCoordByFormula(img, lms, 165)
+# circ = circ[...,0:155] # drops all non-zero entries by assuming that all circles have 155 pixels
+# torch.save(circ, "circle.pt")
+loaded_circles = torch.load("/home/erguen/Documents/monai-env/circle.pt")
+plotIt(img, lms, circles= loaded_circles, lm=-1)
 
 
 # ### Monai Unet
@@ -162,9 +164,3 @@ plotIt(img, lms, lm=-1)
 #   epoch_loss_values.append(epoch_loss)
 
 ### Fragen:
-# - passt es wie ich die Daten reinlade ?
-# - sieht mein UNet sinnvoll aus ?
-# - Wie komme ich von der Ausgabe vom UNet zu Landmarks ?
-# - Lossfunction
-# - Dimensions mit unsqueeze
-# - 
