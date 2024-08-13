@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import math
 from torchinfo import summary
 from monai.data import DataLoader
+import numpy as np
+from skimage.draw import disk
 
 ### Cuda Safety
 if torch.cuda.is_available():
@@ -53,67 +55,50 @@ class xRayDataset(Dataset):
     return got_img, got_lms
 
 ### Inits
-circ = torch.zeros([247, 166, 2, 200]) # patients, landmarks, axis, possible points
+circ = torch.zeros([247, 166, 2, 200])# patients, landmarks, axis, possible points
 lm_count = 0 # needs to be 0 for below else 165 for test
 patient_nr = 0
+masks = torch.zeros(247, 166, 254, 254).to(device)
+vizMask = torch.zeros(254, 254)
 
 ### Create sets
 train_dataset = xRayDataset('train')
 test_dataset = xRayDataset('test')
-img, lms = train_dataset[patient_nr]
+img, lms = train_dataset[0]
 
-def circleCoordByFormula(image, landmarks, lm_limit, patient=patient_nr, width=255, height=255, radius=10, epsilon=5, lm=0, multiple=True):
-    ''' Checks for each combination of y and x coordinates if the described point lies in the circle
-        around the landmark. If yes, the point is added to the circ tensor.
-        Optionally does this recursively for each landmark if multiple=True.
-    '''
-    ### Inits
-    global lm_count
-    count = 0
-    x_axis = 0
-    y_axis = 1
-    print(lm_count)
-    ### Calculation loop using the circle inlier formula (x-a)^2 + (y-b)^2 - r^2 < epsilon^2
-    for y in range(height):
-        for x in range(width):
-            if abs((x-landmarks[lm][x_axis])**2 + (y-landmarks[lm][y_axis])**2 - radius**2) < epsilon**2:
-                circ[patient][lm][x_axis][count] = x
-                circ[patient][lm][y_axis][count] = y
-                count += 1
-    ### Recursive call for multiple landmarks
-    if multiple == True and lm_count < lm_limit: 
-        lm_count += 1
-        circleCoordByFormula(image, landmarks, lm_limit, lm=lm+1)
+def createMasks(dataset, patient_count=247, do_once=False):
+  for patient_nr in (tqdm(range(patient_count))):
+    lm_nr = 0
+    img, lms = dataset[patient_nr]
+    for lm in tqdm(lms):
+      mask = torch.zeros(254, 254).to(device)
+      x, y = disk((lm[0], lm[1]), 5)
+      mask[y, x] = 1
+      masks[patient_nr, lm_nr,... ] = mask
+      lm_nr += 1
+    if do_once: break
 
-def plotIt(image, landmarks, circles=circ, patient=patient_nr, lm=0, s_lm=5, s_circ=1, c_lm="r", c_circ="b"):
-    ''' Plots the X-ray with the landmarks and circles ontop of it.
-        Offers the option to plot either a single circle (lm>-1) or all (lm=-1).
-        Parameters s_ and c_ are for the dot size and color.
-    '''
-    plot_flag = True
-    plot_count = 0
-    ### Case for plotting a single circle
-    if lm > -1:
-        implot = plt.imshow(image[:, :], cmap='gray')
-        plt.scatter(landmarks[:, 0], landmarks[:, 1], s=s_lm, c=c_lm)
-        plt.scatter(circles[patient][lm][0][:], circles[patient][lm][1][:],  s=s_circ, c=c_circ)  
-    ### Case for plotting all circles
-    elif lm == -1:
-        implot = plt.imshow(image[:, :], cmap='gray')
-        plt.scatter(landmarks[:, 0], landmarks[:, 1], s=s_lm, c=c_lm)
-        ### Plot all calculated circles
-        while plot_flag and plot_flag < 166:
-            if circles[patient][plot_count][0][0] == 0 and circles[patient][plot_count][0][0] == 0:
-                plot_flag = False
-            plt.scatter(circles[patient][plot_count][0][:], circles[patient][plot_count][1][:],  s=s_circ, c=c_circ)
-            plot_count += 1
+def createMasks4visual(dataset, patient_count=247, do_once=False):
+  for patient_nr in (tqdm(range(patient_count))):
+    lm_nr = 0
+    img, lms = dataset[patient_nr]
+    for lm in tqdm(lms):
+      x, y = disk((lm[0], lm[1]), 5)
+      vizMask[y, x] = 1
+      lm_nr += 1
+    if do_once: break
 
-### Function calls         
-# circleCoordByFormula(img, lms, 165)
-# circ = circ[...,0:155] # drops all non-zero entries by assuming that all circles have 155 pixels
+def harryPlotter(image, landmarks, s_lm=1, c_lm="r"):
+  implot = plt.imshow(image[:, :], cmap='gray')
+  plt.scatter(landmarks[:, 0], landmarks[:, 1], s=s_lm, c=c_lm)
+  plt.imshow(vizMask, cmap='jet', alpha=0.5)
+
+### Function calls
+createMasks(train_dataset, do_once=True)
+createMasks4visual(train_dataset, do_once=True)
+harryPlotter(img, lms)
 # torch.save(circ, "circle.pt")
-loaded_circles = torch.load("/home/erguen/Documents/monai-env/circle.pt")
-plotIt(img, lms, circles= loaded_circles, lm=-1)
+# loaded_circles = torch.load("/home/erguen/Documents/monai-env/circle.pt")
 
 
 # ### Monai Unet
@@ -135,7 +120,7 @@ plotIt(img, lms, circles= loaded_circles, lm=-1)
 # loss_function = nn.MSELoss()
 # optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-# ### Initializations
+# ### NNetwork inits
 # epoch_loss_values = []
 # max_epochs = 10
 
@@ -144,22 +129,23 @@ plotIt(img, lms, circles= loaded_circles, lm=-1)
 #   model.train()
 #   epoch_loss = 0
 #   step = 0
+#   print(epoch)
 #   for batch_image, batch_landmarks in train_dataset:
 #     step += 1
 #     image, landmarks = batch_image.to(device), batch_landmarks.to(device)
 #     image = image.unsqueeze(0)
 #     image = image.unsqueeze(0)
 #     optimizer.zero_grad()
-#     output = model(image)
+#     with torch.autocast(device_type="cuda", dtype=torch.float16):
+#         output = model(image)
 #     im = output.cpu().squeeze()
 #     im = im.detach().numpy()
 #     implot = plt.imshow(im[:,:], cmap='gray')
 #     exit()
-#     kill
-#     loss = loss_function(output, landmarks)
-#     loss.backward()
-#     optimizer.step()
-#     epoch_loss += loss.item()
+    # loss = loss_function(output, landmarks)
+    # loss.backward()
+    # optimizer.step()
+    # epoch_loss += loss.item()
 #   epoch_loss /= step
 #   epoch_loss_values.append(epoch_loss)
 
