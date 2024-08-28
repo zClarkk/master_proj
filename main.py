@@ -55,35 +55,41 @@ class xRayDataset(Dataset):
     return got_img, got_lms
 
 ### Inits
-circ = torch.zeros([247, 166, 2, 200])# patients, landmarks, axis, possible points
-lm_count = 0 # needs to be 0 for below else 165 for test
+lm_count = 0# needs to be 0 for below else 165 for test
 patient_nr = 0
-masks = torch.zeros(247, 166, 254, 254).to(device)
-vizMask = torch.zeros(254, 254)
+mask = torch.load("/home/erguen/Documents/monai-env/mask.pt")
+#masks = torch.zeros(247, 166, 254, 254).to(device)
+#vizMask = torch.zeros(254, 254)
+
 
 ### Create sets
 train_dataset = xRayDataset('train')
 test_dataset = xRayDataset('test')
-img, lms = train_dataset[0]
+#img, lms = train_dataset[0]
 
-def createMasks(dataset, patient_count=247, do_once=False):
+def createMasks(dataset, patient_count=200, do_once=False):
   for patient_nr in (tqdm(range(patient_count))):
     lm_nr = 0
     img, lms = dataset[patient_nr]
     for lm in tqdm(lms):
       mask = torch.zeros(254, 254).to(device)
       x, y = disk((lm[0], lm[1]), 5)
+      x = np.clip(x, 0, 253)
+      y = np.clip(y, 0, 253)
       mask[y, x] = 1
       masks[patient_nr, lm_nr,... ] = mask
       lm_nr += 1
     if do_once: break
+  return masks
 
-def createMasks4visual(dataset, patient_count=247, do_once=False):
+def createMasks4visual(dataset, patient_count=200, do_once=False):
   for patient_nr in (tqdm(range(patient_count))):
     lm_nr = 0
     img, lms = dataset[patient_nr]
     for lm in tqdm(lms):
       x, y = disk((lm[0], lm[1]), 5)
+      x = np.clip(x, 0, 253)
+      y = np.clip(y, 0, 253)
       vizMask[y, x] = 1
       lm_nr += 1
     if do_once: break
@@ -94,25 +100,25 @@ def harryPlotter(image, landmarks, s_lm=1, c_lm="r"):
   plt.imshow(vizMask, cmap='jet', alpha=0.5)
 
 ### Function calls
-createMasks(train_dataset, do_once=True)
-createMasks4visual(train_dataset, do_once=True)
-harryPlotter(img, lms)
-# torch.save(circ, "circle.pt")
-# loaded_circles = torch.load("/home/erguen/Documents/monai-env/circle.pt")
+# createMasks(train_dataset, do_once=False)
+# createMasks4visual(train_dataset, do_once=True)
+# harryPlotter(img, lms)
+# torch.save(createMasks(train_dataset, do_once=False), "mask.pt")
 
 
-# ### Monai Unet
-# model = nets.UNet(
-#   spatial_dims=2,
-#   in_channels=1,
-#   out_channels=1,
-#   channels=(64, 128, 256, 512),
-#   strides=(2, 2, 2),
-#   kernel_size=3,
-#   up_kernel_size=3,
-#   num_res_units=2,
-#   act='LeakyReLU'
-# ).to(device)
+
+### Monai Unet
+model = nets.UNet(
+  spatial_dims=2,
+  in_channels=1,
+  out_channels=1,
+  channels=(64, 128, 256, 512),
+  strides=(2, 2, 2),
+  kernel_size=3,
+  up_kernel_size=3,
+  num_res_units=2,
+  act='LeakyReLU'
+).to(device)
 
 # ### Loss and Optimizer
 # def TRE_loss(lms, lms_hat): # TRE_loss(landmarks, output, ord=2, dim=-1)
