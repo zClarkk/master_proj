@@ -118,12 +118,12 @@ def plotLoaded(mask, pat_nr, s_lm=1, c_lm="r"):
 ### Monai Unet
 model = nets.UNet(
   spatial_dims=2,
-  in_channels=1,
-  out_channels=1,
-  channels=(64, 128, 256, 512),
-  strides=(2, 2, 2),
-  kernel_size=3,
-  up_kernel_size=3,
+  in_channels=166,
+  out_channels=166,
+  channels=(16, 32, 64, 128, 256),
+  strides=(2, 2, 2, 2),
+  #kernel_size=3,
+  #up_kernel_size=3,
   num_res_units=2,
   act='LeakyReLU'
 ).to(device)
@@ -137,6 +137,26 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 ### NNetwork inits
 epoch_loss_values = []
 max_epochs = 10
+
+for (batch_image, batch_lm), batch_mask in zip(train_dataset, mask):
+  model.train()
+  optimizer.zero_grad()
+  # print(f"Batch Image: {batch_image.size()}")
+  # print(f"Batch Lm: {batch_lm.size()}")
+  # print(f"Batch Mask: {batch_mask.size()}")
+  image, lm_mask = batch_image.to(device), batch_mask.to(device)
+  image = torch.unsqueeze(image, 0)
+  image = torch.unsqueeze(image, 0)
+  image = image.expand(-1, 166, -1, -1)
+  lm_mask = torch.unsqueeze(lm_mask, 0)
+  print(f"Batch Image: {image.size()}")
+  print(f"Batch Mask: {lm_mask.size()}")
+  with torch.autocast(device_type="cuda", dtype=torch.float16):
+    output = model(torch.cat((image, lm_mask)))
+  break
+
+
+exit()
 
 ### Training
 for epoch in range(max_epochs):
