@@ -1,5 +1,6 @@
 import monai
 from monai.networks import nets
+from monai.losses.dice import GeneralizedDiceLoss
 from monai.losses.dice import DiceLoss
 import torch
 import torch.nn as nn
@@ -12,6 +13,7 @@ from torchinfo import summary
 from monai.data import DataLoader
 import numpy as np
 from skimage.draw import disk
+from monai.networks.utils import one_hot
 
 ### Cuda Safety
 if torch.cuda.is_available():
@@ -102,22 +104,23 @@ model = nets.UNet(
   in_channels=1,
   out_channels=166,
   channels=(16, 32, 64, 128, 256),
-  strides=(2, 2, 2, 2),
+  strides=(2, 2, 2, 1),
   num_res_units=2,
-  act='LeakyReLU'
+  act='LeakyReLU',
+  norm='batch'
 ).to(device)
 
 ### Loss and Optimizer
 # def TRE_loss(lms, lms_hat): # TRE_loss(landmarks, output, ord=2, dim=-1)
 #   torch.linalg.vector_norm(lms - lms_hat, ord=2, dim=-1)
-loss_function = DiceLoss()
+loss_function = GeneralizedDiceLoss(softmax=True, include_background=False)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 inferer = monai.inferers.SimpleInferer()
-dice_metric = monai.metrics.DiceMetric(include_background=True, reduction="mean", get_not_nans=False)
+dice_metric = monai.metrics.DiceMetric(include_background=False, reduction="mean")
 
 ### NNetwork inits
 epoch_loss_values = []
-max_epochs = 10
+max_epochs = 5
 val_interval = 2
 
 def validation():
@@ -154,8 +157,9 @@ def train():
       image = torch.unsqueeze(image, 0)
 
       optimizer.zero_grad()
-      with torch.autocast(device_type="cuda", dtype=torch.float16):
+      with torch.cuda.amp.autocast( dtype=torch.float16):
         output = model(image)
+      # print(output.shape[1])
       loss = loss_function(output[0], lm_mask)
       loss.backward()
       optimizer.step()
@@ -164,7 +168,7 @@ def train():
       epoch_len = len(train_dataset) // 1
       # print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
     epoch_loss /= step
-    epoch_loss_values.append(epoch_loss)
+    # epoch_loss_values.append(epoch_loss)
     print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
     if (epoch + 1) % val_interval ==0:
       model.eval()
@@ -181,13 +185,13 @@ def train():
       metric = dice_metric.aggregate().item()
       dice_metric.reset()
       print(metric)
-  return output
+  return output, val_outputs
 
-result = train()
+result, val = train()
 
 
 ### Plots the segmentation for patient 200 in the last epoch
-cpu_out = result.cpu()
+cpu_out = val.cpu()
 detached = cpu_out.detach().numpy()
 print(detached.shape)
 plotLoaded(detached)
